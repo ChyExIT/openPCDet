@@ -7,15 +7,15 @@ DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml  # 基础配置，指定使用的基础数据集配置文件，这里是 KITTI 数据集的配置。
     POINT_CLOUD_RANGE: [0, -39.68, -3, 69.12, 39.68, 1]   # 定义了点云数据的有效范围，分别是 [x_min, y_min, z_min, x_max, y_max, z_max]。
     DATA_PROCESSOR: # 数据预处理
-        - NAME: mask_points_and_boxes_outside_range
-          REMOVE_OUTSIDE_BOXES: True
+        - NAME: mask_points_and_boxes_outside_range # 过滤掉在指定点云范围之外的点和边界框
+          REMOVE_OUTSIDE_BOXES: True # 是否在边界框超出有效范围时进行过滤。
 
-        - NAME: shuffle_points
+        - NAME: shuffle_points # 在训练时打乱点云数据的顺序，测试时不打乱。
           SHUFFLE_ENABLED: {
             'train': True,
             'test': False
           }
-
+          # 将点云数据转换为体素数据，定义了体素的大小、每个体素中允许的最大点数以及训练和测试时允许的最大体素数。
         - NAME: transform_points_to_voxels
           VOXEL_SIZE: [0.16, 0.16, 4]
           MAX_POINTS_PER_VOXEL: 32
@@ -26,62 +26,68 @@ DATA_CONFIG:
     DATA_AUGMENTOR:
         DISABLE_AUG_LIST: ['placeholder']
         AUG_CONFIG_LIST:
-            - NAME: gt_sampling
-              USE_ROAD_PLANE: False
+            - NAME: gt_sampling # 从数据库中采样真实的目标实例添加到场景中，进行数据增强。
+              USE_ROAD_PLANE: False # 是否使用道路平面参数来增强数据。
               DB_INFO_PATH:
-                  - kitti_dbinfos_train.pkl
-              PREPARE: {
-                 filter_by_min_points: ['Car:5', 'Pedestrian:5', 'Cyclist:5'],
-                 filter_by_difficulty: [-1],
+                  - kitti_dbinfos_train.pkl # 数据库信息文件路径
+              PREPARE: { # 数据库信息预处理
+                 filter_by_min_points: ['Car:5', 'Pedestrian:5', 'Cyclist:5'], 
+                 filter_by_difficulty: [-1], 
               }
+            
+              SAMPLE_GROUPS: ['Car:15','Pedestrian:15', 'Cyclist:15'] # 数据库采样配置
+              NUM_POINT_FEATURES: 4 # 点云数据特征维度
+              DATABASE_WITH_FAKELIDAR: False # 是否使用伪 LiDAR 数据增强。
+              REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0] # 边界框边界宽度调整
+              LIMIT_WHOLE_SCENE: False # 是否将整个场景作为数据增强
 
-              SAMPLE_GROUPS: ['Car:15','Pedestrian:15', 'Cyclist:15']
-              NUM_POINT_FEATURES: 4
-              DATABASE_WITH_FAKELIDAR: False
-              REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
-              LIMIT_WHOLE_SCENE: False
-
+            # 随机地沿指定轴（这里是 x 轴）翻转场景。
             - NAME: random_world_flip
               ALONG_AXIS_LIST: ['x']
 
-            - NAME: random_world_rotation
+            - NAME: random_world_rotation # 随机地对场景进行旋转，旋转角度在 [-0.78539816, 0.78539816] 范围内。
               WORLD_ROT_ANGLE: [-0.78539816, 0.78539816]
 
-            - NAME: random_world_scaling
+            - NAME: random_world_scaling # 随机地对场景进行缩放，缩放范围在 [0.95, 1.05] 之间。
               WORLD_SCALE_RANGE: [0.95, 1.05]
-
+# 模型配置
 MODEL:
     NAME: PointPillar
 
+    # 体素特征编码器（VFE）
     VFE:
-        NAME: PillarVFE
-        WITH_DISTANCE: False
-        USE_ABSLOTE_XYZ: True
-        USE_NORM: True
-        NUM_FILTERS: [64]
+        NAME: PillarVFE # 使用 Pillar 体素特征编码器。
+        WITH_DISTANCE: False # 不使用点到原点的距离作为特征。
+        USE_ABSLOTE_XYZ: True # 使用点的绝对坐标作为特征。
+        USE_NORM: True # 对特征进行归一化处理。
+        NUM_FILTERS: [64] # 指定编码器的输出通道数为 64。
 
+    # 映射到鸟瞰图（MAP_TO_BEV）
     MAP_TO_BEV:
-        NAME: PointPillarScatter
-        NUM_BEV_FEATURES: 64
+        NAME: PointPillarScatter # 将体素特征映射到鸟瞰图特征。
+        NUM_BEV_FEATURES: 64 # 鸟瞰图特征的通道数为 64。
 
+    # 二维骨干网络（BACKBONE_2D）
     BACKBONE_2D:
-        NAME: BaseBEVBackbone
-        LAYER_NUMS: [3, 5, 5]
-        LAYER_STRIDES: [2, 2, 2]
-        NUM_FILTERS: [64, 128, 256]
-        UPSAMPLE_STRIDES: [1, 2, 4]
-        NUM_UPSAMPLE_FILTERS: [128, 128, 128]
+        NAME: BaseBEVBackbone # 使用二维骨干网络进行特征提取。
+        LAYER_NUMS: [3, 5, 5] # 每个阶段的卷积层数量。
+        LAYER_STRIDES: [2, 2, 2] # 每个阶段的卷积步长。
+        NUM_FILTERS: [64, 128, 256] # 每个阶段的卷积核数量。
+        UPSAMPLE_STRIDES: [1, 2, 4] # 上采样的步长。
+        NUM_UPSAMPLE_FILTERS: [128, 128, 128] # 上采样后的输出通道数。
 
+    # 密集检测头（DENSE_HEAD）
     DENSE_HEAD:
-        NAME: AnchorHeadSingle
-        CLASS_AGNOSTIC: False
+        NAME: AnchorHeadSingle # 使用单目标头进行目标检测。
+        CLASS_AGNOSTIC: False # 不使用类别agnostic的模型，即每个类别都有自己的分类头和回归头。
 
-        USE_DIRECTION_CLASSIFIER: True
+        USE_DIRECTION_CLASSIFIER: True # 使用方向分类器
         DIR_OFFSET: 0.78539
         DIR_LIMIT_OFFSET: 0.0
         NUM_DIR_BINS: 2
 
-        ANCHOR_GENERATOR_CONFIG: [
+        # 定义不同类别的锚框生成配置，包括锚框的大小、旋转角度、底部高度等。
+        ANCHOR_GENERATOR_CONFIG: [ 
             {
                 'class_name': 'Car',
                 'anchor_sizes': [[3.9, 1.6, 1.56]],
@@ -114,6 +120,7 @@ MODEL:
             }
         ]
 
+        # 定义目标分配器，用于将锚框与真实目标进行匹配。
         TARGET_ASSIGNER_CONFIG:
             NAME: AxisAlignedTargetAssigner
             POS_FRACTION: -1.0
@@ -122,6 +129,7 @@ MODEL:
             MATCH_HEIGHT: False
             BOX_CODER: ResidualCoder
 
+        # 损失函数的配置，定义了分类损失、定位损失和方向损失的权重。
         LOSS_CONFIG:
             LOSS_WEIGHTS: {
                 'cls_weight': 1.0,
@@ -130,13 +138,15 @@ MODEL:
                 'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
             }
 
+    # 后处理（POST_PROCESSING）
     POST_PROCESSING:
-        RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
-        SCORE_THRESH: 0.1
+        RECALL_THRESH_LIST: [0.3, 0.5, 0.7] # 召回率阈值列表，用于计算召回率。
+        SCORE_THRESH: 0.1 # 预测分数阈值，用于筛选出得分大于阈值的预测结果。
         OUTPUT_RAW_SCORE: False
 
-        EVAL_METRIC: kitti
+        EVAL_METRIC: kitti # 评估指标，使用 KITTI 数据集的评估指标。
 
+        # 非极大值抑制（NMS）的配置，包括 NMS 的类型、阈值、预处理最大数量和后处理最大数量。
         NMS_CONFIG:
             MULTI_CLASSES_NMS: False
             NMS_TYPE: nms_gpu
@@ -144,24 +154,24 @@ MODEL:
             NMS_PRE_MAXSIZE: 4096
             NMS_POST_MAXSIZE: 500
 
-
+# 优化配置（OPTIMIZATION）
 OPTIMIZATION:
-    BATCH_SIZE_PER_GPU: 4
+    BATCH_SIZE_PER_GPU: 4 # 每个 GPU 的批量大小为 4。
     NUM_EPOCHS: 80
 
-    OPTIMIZER: adam_onecycle
+    OPTIMIZER: adam_onecycle # 使用 Adam 优化器，使用 OneCycleLR 学习率调度器。
     LR: 0.003
-    WEIGHT_DECAY: 0.01
-    MOMENTUM: 0.9
+    WEIGHT_DECAY: 0.01 # 权重衰减为 0.01。
+    MOMENTUM: 0.9 # 动量设置为 0.9。
 
     MOMS: [0.95, 0.85]
     PCT_START: 0.4
     DIV_FACTOR: 10
     DECAY_STEP_LIST: [35, 45]
-    LR_DECAY: 0.1
+    LR_DECAY: 0.1 # 学习率衰减因子为 0.1，在第 35 和 45 轮时进行衰减。
     LR_CLIP: 0.0000001
 
     LR_WARMUP: False
     WARMUP_EPOCH: 1
 
-    GRAD_NORM_CLIP: 10
+    GRAD_NORM_CLIP: 10 # 梯度裁剪阈值为 10。

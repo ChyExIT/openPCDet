@@ -148,7 +148,15 @@ class NuScenesDataset(DatasetTemplate):
             crop_images.append(img)
             img_process_infos.append([resize, crop, False, 0])
         
+        # input_dict['img_process_infos'] = img_process_infos
+
+        # 修改前（返回列表）
         input_dict['img_process_infos'] = img_process_infos
+
+        # 修改后（转换为numpy数组并统一维度）
+        # img_process_array = np.array(img_process_infos, dtype=np.float32)  # (num_cams, 4)
+        # input_dict['img_process_infos'] = img_process_array
+
         input_dict['camera_imgs'] = crop_images
         return input_dict
     

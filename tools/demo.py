@@ -3,7 +3,7 @@ import glob
 from pathlib import Path
 
 try:
-    # import open3d
+    import open3d
     from visual_utils import open3d_vis_utils as V
     OPEN3D_FLAG = True
 except:

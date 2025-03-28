@@ -57,7 +57,8 @@ class BaseBEVBackbone(nn.Module):
                         nn.ReLU()
                     ))
                 else:
-                    stride = np.round(1 / stride).astype(np.int)
+                    # stride = np.round(1 / stride).astype(np.int)
+                    stride = int(np.round(1 / stride))  # 显式转换为 Python 原生整数类型
                     self.deblocks.append(nn.Sequential(
                         nn.Conv2d(
                             num_filters[idx], num_upsample_filters[idx],
@@ -158,7 +159,8 @@ class BaseBEVBackboneV1(nn.Module):
                         nn.ReLU()
                     ))
                 else:
-                    stride = np.round(1 / stride).astype(np.int)
+                    # stride = np.round(1 / stride).astype(np.int)
+                    stride = int(np.round(1 / stride))
                     self.deblocks.append(nn.Sequential(
                         nn.Conv2d(
                             num_filters[idx], num_upsample_filters[idx],
@@ -297,6 +299,7 @@ class BaseBEVResBackbone(nn.Module):
                     ))
                 else:
                     stride = np.round(1 / stride).astype(np.int)
+                    # stride = int(np.round(1 / stride))
                     self.deblocks.append(nn.Sequential(
                         nn.Conv2d(
                             num_filters[idx], num_upsample_filters[idx],

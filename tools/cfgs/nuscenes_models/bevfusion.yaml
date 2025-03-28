@@ -60,6 +60,7 @@ DATA_CONFIG:
         IMAGE:
             FINAL_DIM: [256,704]   # 输入图像尺寸(高256，宽704)
             RESIZE_LIM_TRAIN: [0.38, 0.55]  # 训练时随机缩放比例范围
+            # RESIZE_LIM_TRAIN: [0.48, 0.48]  # 训练时随机缩放比例范围
             RESIZE_LIM_TEST: [0.48, 0.48]
 
     DATA_AUGMENTOR:
@@ -139,7 +140,8 @@ MODEL:
         CONVERT_WEIGHTS: True
         INIT_CFG:
             type: Pretrained
-            checkpoint: swint-nuimages-pretrained.pth
+            checkpoint: cbgs_bevfusion.pth
+            # checkpoint: swint-nuimages-pretrained.pth
     
     NECK:
         NAME: GeneralizedLSSFPN  # 特征金字塔网络

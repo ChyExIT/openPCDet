@@ -1,0 +1,37 @@
+# 运行demo
+python tools/demo.py --cfg_file tools/cfgs/kitti_models/pointpillar.yaml --ckpt pth/pointpillar_7728.pth --data_path data/kitti/training/velodyne/000000.bin
+
+cd tools
+python demo.py --cfg_file cfgs/kitti_models/pv_rcnn.yaml  --ckpt ../weights/pv_rcnn_8369.pth --data_path ../data/velodyne_points/data/0000000008.bin
+
+# 生成数据pkl文件和gt_database文件夹
+python -m pcdet.datasets.nuscenes.nuscenes_dataset --func create_nuscenes_infos \
+    --cfg_file tools/cfgs/dataset_configs/nuscenes_dataset.yaml \
+    --version v1.0-mini \
+    --with_cam
+
+# 单卡训练
+cd tools
+python train.py --cfg_file cfgs/nuscenes_models/bevfusion.yaml
+
+#tensorBoard可视化
+cd output/nuscenes_models/transfusion_lidar/default/
+tensorboard --logdir tensorboard/
+
+# 运行test.py脚本验证模型在测试集上的性能
+cd tools
+python test.py --cfg_file cfgs/kitti_models/pointpillar.yaml --batch_size 4 --ckpt ../output/kitti_models/pointpillar/default/ckpt/checkpoint_epoch_10.pth
+
+
+# 推理
+cd tools
+python demo.py --cfg_file cfgs/nuscenes_models/transfusion_lidar.yaml  --data_path ../data/nuscenes/v1.0-mini/gt_database_10sweeps_withvelo/0_car_16.bin --ckpt ../output/nuscenes_models/transfusion_lidar/default/ckpt/checkpoint_epoch_1.pth
+
+# 训练激光雷达分支
+python train.py --cfg_file cfgs/nuscenes_models/transfusion_lidar.yaml  --batch_size=2   --epochs=1
+numpy==1.24.4
+scipy==1.15.2
+
+
+# 训练完整BEVFusion（需6天）
+python train.py --cfg_file cfgs/nuscenes_models/bevfusion.yaml --batch_size=1 --epochs=2
